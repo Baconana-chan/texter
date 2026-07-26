@@ -1,0 +1,167 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # ── Lint & type-check ───────────────────────────────
+  check:
+    name: TypeScript + Rust check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system deps (Tauri)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Rust check (cargo check)
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+
+  # ── Cross-platform build ─────────────────────────────
+  build:
+    name: Build (${{ matrix.os }})
+    needs: check
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bundle: deb
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            bundle: dmg
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            bundle: dmg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: msi
+      fail-fast: false
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Setup Node ──
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # ── Setup Rust ──
+      - name: Install Rust (${{ matrix.target }})
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── System deps (Linux only) ──
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      # ── Install npm deps ──
+      - name: Install npm dependencies
+        run: npm ci
+
+      # ── Build Tauri app ──
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Texter v__VERSION__'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: true
+          includeDebug: false
+          tauriScript: npm run tauri
+          args: --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+
+      # ── Upload artifact ──
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: texter-${{ matrix.os }}-${{ matrix.target }}
+          path: |
+            src-tauri/target/release/bundle/${{ matrix.bundle }}/*
+            src-tauri/target/${{ matrix.target }}/release/bundle/${{ matrix.bundle }}/*
+          if-no-files-found: warn
+          retention-days: 7
+
+  # ── Publish release (triggered by tag push) ──────────
+  publish:
+    name: Publish Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate release description
+        run: |
+          {
+            echo "## 📦 Texter ${{ github.ref_name }}"
+            echo ""
+            echo "### Changes"
+            echo ""
+            echo "See the [commits](https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}) for details."
+            echo ""
+            echo "### Downloads"
+            echo ""
+            echo "| Platform | File |"
+            echo "|----------|------|"
+            ls -lh artifacts/*/ 2>/dev/null | grep -E "\.(deb|AppImage|dmg|msi|zip)$" | \
+              while read line; do
+                name=$(echo "$line" | awk '{print $NF}')
+                size=$(echo "$line" | awk '{print $5}')
+                echo "| \`$name\` | ~${size} |"
+              done
+          } > release-notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release-notes.md
+          draft: true
+          prerelease: false
+          files: |
+            artifacts/**/*
