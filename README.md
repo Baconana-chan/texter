@@ -119,7 +119,7 @@ Texter parses files **locally** — no server needed. Supported formats:
 
 ## 📥 Download
 
-Pre-built binaries are available via [GitHub Releases](https://github.com/YOUR_USERNAME/texter/releases).
+Pre-built binaries are available via [GitHub Releases](https://github.com/Baconana-chan/texter/releases).
 
 | Platform | Architecture | Format |
 |----------|-------------|--------|
@@ -168,7 +168,7 @@ On first launch, you'll be prompted to add a provider. Enter your API key and yo
 
 ```bash
 # Clone the repo
-git clone https://github.com/YOUR_USERNAME/texter.git
+git clone https://github.com/Baconana-chan/texter.git
 cd texter
 
 # Install frontend dependencies
