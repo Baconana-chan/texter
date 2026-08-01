@@ -8,6 +8,8 @@ interface Props {
   onEditCharacter: (char: Character) => void
   onDeleteCharacter: (id: string) => void
   onDuplicateCharacter: (char: Character) => void
+  onGenerateCharacters?: () => void
+  onRefineCharacter?: (char: Character) => void
   onNewScene: () => void
   onEditScene: (scene: Scene) => void
   onDeleteScene: (id: string) => void
@@ -24,6 +26,8 @@ export function ProjectView({
   onEditCharacter,
   onDeleteCharacter,
   onDuplicateCharacter,
+  onGenerateCharacters,
+  onRefineCharacter,
   onNewScene,
   onEditScene,
   onDeleteScene,
@@ -94,6 +98,8 @@ export function ProjectView({
             onEdit={onEditCharacter}
             onDelete={onDeleteCharacter}
             onDuplicate={onDuplicateCharacter}
+            onGenerate={onGenerateCharacters}
+            onRefine={onRefineCharacter}
             onStartChat={onStartChatWithCharacter}
           />
         )}
@@ -119,6 +125,8 @@ function CharactersTab({
   onEdit,
   onDelete,
   onDuplicate,
+  onGenerate,
+  onRefine,
   onStartChat,
 }: {
   characters: Character[]
@@ -129,6 +137,8 @@ function CharactersTab({
   onEdit: (c: Character) => void
   onDelete: (id: string) => void
   onDuplicate: (c: Character) => void
+  onGenerate?: () => void
+  onRefine?: (char: Character) => void
   onStartChat?: (char: Character, scene?: Scene) => void
 }) {
   if (characters.length === 0) {
@@ -137,13 +147,43 @@ function CharactersTab({
         <span class="project-view__empty-icon">🎭</span>
         <h3>No characters yet</h3>
         <p>Create your first character to start roleplaying</p>
-        <button class="btn btn--primary" onClick={onNew}>Create Character</button>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button class="btn btn--primary" onClick={onNew}>Create Character</button>
+          {onGenerate && (
+            <button class="btn btn--ghost" onClick={onGenerate}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              Generate with AI
+            </button>
+          )}
+        </div>
       </div>
     )
   }
 
   return (
     <div>
+      {/* Toolbar */}
+      <div class="pv-char-toolbar">
+        <div class="pv-char-toolbar__left">
+          <button class="btn btn--primary" onClick={onNew}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            New Character
+          </button>
+          {onGenerate && (
+            <button class="btn btn--ghost" onClick={onGenerate}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              Generate with AI
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Scene selector for chat context */}
       {onStartChat && scenes.length > 0 && (
         <div class="pv-scene-picker">
@@ -171,6 +211,21 @@ function CharactersTab({
                 <h3 class="project-card__name">{char.name}</h3>
                 {char.description && <p class="project-card__desc">{char.description}</p>}
                 <span class="project-card__model">{char.model}</span>
+                {/* Profile badges */}
+                {char.profile && (
+                  <div class="project-card__profile-badges">
+                    {char.profile.gender && <span class="profile-badge">⚤ {char.profile.gender}</span>}
+                    {char.profile.age && <span class="profile-badge">🎂 {char.profile.age}</span>}
+                    {char.profile.traits && <span class="profile-badge profile-badge--long" title={char.profile.traits}>🧠 {char.profile.traits.slice(0, 40)}{char.profile.traits.length > 40 ? '…' : ''}</span>}
+                    {char.profile.appearance && <span class="profile-badge profile-badge--long" title={char.profile.appearance}>👁️ {char.profile.appearance.slice(0, 40)}{char.profile.appearance.length > 40 ? '…' : ''}</span>}
+                    {char.profile.goals && <span class="profile-badge profile-badge--long" title={char.profile.goals}>🎯 {char.profile.goals.slice(0, 40)}{char.profile.goals.length > 40 ? '…' : ''}</span>}
+                    {char.profile.customFields?.map((cf) => (
+                      <span class="profile-badge" title={`${cf.key}: ${cf.value}`}>
+                        📋 {cf.key}: {cf.value}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {char.systemPrompt && (
                   <div class="project-card__prompt-preview">
                     {char.systemPrompt.slice(0, 100)}{char.systemPrompt.length > 100 ? '...' : ''}
@@ -193,6 +248,13 @@ function CharactersTab({
                       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                     </svg>
                     Chat
+                  </button>
+                )}
+                {onRefine && (
+                  <button class="btn btn--ghost btn--icon btn--small" onClick={() => onRefine(char)} title="Refine with AI">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                      <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                    </svg>
                   </button>
                 )}
                 <button class="btn btn--ghost btn--icon btn--small" onClick={() => onEdit(char)} title="Edit">

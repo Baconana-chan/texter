@@ -422,6 +422,44 @@ async function streamChatGoogle(
   }
 }
 
+/**
+ * Non-streaming completion — collects full response from any provider.
+ * Internally wraps streamChat in a Promise for universal provider support.
+ */
+export async function generateText(
+  providerType: ProviderType,
+  apiEndpoint: string,
+  apiKey: string,
+  model: string,
+  messages: { role: string; content: string }[],
+  signal?: AbortSignal,
+  temperature: number = 0.8,
+): Promise<string> {
+  // Extract system message if present (providers handle it differently)
+  const systemMsg = messages.find((m) => m.role === 'system')?.content ?? ''
+  const chatMessages = messages.filter((m) => m.role !== 'system')
+
+  return new Promise<string>((resolve, reject) => {
+    let full = ''
+
+    streamChat(
+      providerType,
+      apiEndpoint,
+      apiKey,
+      model,
+      chatMessages.map((m) => ({ role: m.role, content: m.content })),
+      systemMsg,
+      signal ?? new AbortController().signal,
+      {
+        onToken: (token) => { full += token },
+        onDone: () => resolve(full),
+        onError: (err) => reject(err),
+      },
+      { temperature },
+    )
+  })
+}
+
 /** Generate an image via OpenAI-compatible /images/generations endpoint */
 export async function generateImage(
   apiEndpoint: string,

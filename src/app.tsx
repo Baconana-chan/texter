@@ -14,6 +14,8 @@ import { ClipboardDialog } from './components/ClipboardDialog'
 import { PluginManagerDialog } from './components/PluginManagerDialog'
 import { ThemeEditorDialog } from './components/ThemeEditorDialog'
 import { ImageGenerator } from './components/ImageGenerator'
+import { CharacterGenerator } from './components/CharacterGenerator'
+import { CharacterRefiner } from './components/CharacterRefiner'
 import { StatusBar } from './components/StatusBar'
 import { ToastContainer } from './components/ToastContainer'
 import { addToast } from './utils/toastStore'
@@ -98,6 +100,7 @@ export function App() {
     openEditCharacter,
     closeCharacterEditor,
     saveCharacter,
+    updateCharacter,
     deleteCharacter,
     duplicateCharacter,
     openNewScene,
@@ -114,6 +117,8 @@ export function App() {
   const [pluginsOpen, setPluginsOpen] = useState(false)
   const [themeEditorOpen, setThemeEditorOpen] = useState(false)
   const [imageGenOpen, setImageGenOpen] = useState(false)
+  const [charGenOpen, setCharGenOpen] = useState(false)
+  const [charRefineTarget, setCharRefineTarget] = useState<Character | null>(null)
 
   // Import dialog state
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -251,9 +256,29 @@ export function App() {
 
   // Project-Chat linking
   const handleStartChatWithCharacter = (char: Character, scene?: Scene) => {
+    // Build profile block as structured JSON
+    let profileBlock = ''
+    if (char.profile) {
+      const p = char.profile
+      const fields: Record<string, string> = {}
+      if (p.gender) fields.Gender = p.gender
+      if (p.age) fields.Age = p.age
+      if (p.appearance) fields.Appearance = p.appearance
+      if (p.traits) fields['Personality Traits'] = p.traits
+      if (p.goals) fields.Goals = p.goals
+      if (p.customFields) {
+        for (const cf of p.customFields) {
+          if (cf.key) fields[cf.key] = cf.value
+        }
+      }
+      if (Object.keys(fields).length > 0) {
+        profileBlock = `\n\n[Character Profile]\n${JSON.stringify(fields, null, 2)}`
+      }
+    }
+
     const combinedPrompt = scene?.prompt
-      ? `${char.systemPrompt}\n\n[Context: ${scene.prompt}]`
-      : char.systemPrompt
+      ? `${char.systemPrompt}${profileBlock}\n\n[Context: ${scene.prompt}]`
+      : `${char.systemPrompt}${profileBlock}`
 
     createChat({
       systemPrompt: combinedPrompt,
@@ -457,6 +482,8 @@ export function App() {
             onEditCharacter={openEditCharacter}
             onDeleteCharacter={deleteCharacter}
             onDuplicateCharacter={duplicateCharacter}
+            onGenerateCharacters={() => setCharGenOpen(true)}
+            onRefineCharacter={(char) => setCharRefineTarget(char)}
             onNewScene={openNewScene}
             onEditScene={openEditScene}
             onDeleteScene={deleteScene}
@@ -522,6 +549,44 @@ export function App() {
       )}
 
       {/* Dialogs */}
+      {charGenOpen && (
+        <CharacterGenerator
+          providerType={currentProviderType}
+          apiEndpoint={currentApiEndpoint}
+          apiKey={currentApiKey}
+          model={currentModel}
+          onSave={(chars) => {
+            for (const c of chars) saveCharacter(c)
+            setCharGenOpen(false)
+            addToast(`Saved ${chars.length} character${chars.length > 1 ? 's' : ''} to library`, 'success')
+          }}
+          onClose={() => setCharGenOpen(false)}
+        />
+      )}
+
+      {charRefineTarget && (
+        <CharacterRefiner
+          character={charRefineTarget}
+          providerType={currentProviderType}
+          apiEndpoint={currentApiEndpoint}
+          apiKey={currentApiKey}
+          model={currentModel}
+          onApply={(id, updates) => {
+            updateCharacter(id, {
+              name: updates.name ?? charRefineTarget.name,
+              avatar: updates.avatar ?? charRefineTarget.avatar,
+              description: updates.description ?? charRefineTarget.description,
+              systemPrompt: updates.systemPrompt ?? charRefineTarget.systemPrompt,
+              temperature: updates.temperature ?? charRefineTarget.temperature,
+              profile: updates.profile ?? charRefineTarget.profile,
+            })
+            setCharRefineTarget(null)
+            addToast(`Updated ${updates.name || charRefineTarget.name}`, 'success')
+          }}
+          onClose={() => setCharRefineTarget(null)}
+        />
+      )}
+
       {charEditorOpen && (
         <CharacterEditor
           character={editingCharacter}

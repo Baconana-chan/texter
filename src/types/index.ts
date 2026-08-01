@@ -241,6 +241,17 @@ export const DEFAULT_THEME_PRESETS: ThemePreset[] = [
 
 export type AppMode = 'chat' | 'projects'
 
+export interface CharacterProfile {
+  /** Free-form fields: gender, age, appearance, traits, goals, etc. */
+  gender?: string
+  age?: string
+  appearance?: string
+  traits?: string
+  goals?: string
+  /** Any extra custom key-value pairs the user wants to add */
+  customFields?: { key: string; value: string }[]
+}
+
 export interface Character {
   id: string
   name: string
@@ -249,6 +260,7 @@ export interface Character {
   model: string
   temperature: number
   description: string
+  profile?: CharacterProfile
   createdAt: number
   updatedAt: number
 }
@@ -359,7 +371,7 @@ export interface TokenStats {
 export const DEFAULT_CHARACTER: Omit<Character, 'id' | 'createdAt' | 'updatedAt'> = {
   name: 'New Character',
   avatar: '🎭',
-  systemPrompt: 'You are a helpful assistant with a friendly personality.',
+  systemPrompt: `You are a character in a story. Respond in character at all times — stay true to your personality, voice, and background. Use appropriate tone, speech patterns, and mannerisms. Never break character or refer to yourself as an AI.`,
   model: 'gpt-4o-mini',
   temperature: 0.8,
   description: '',

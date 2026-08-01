@@ -67,6 +67,16 @@ export function useProjects() {
     setCharacters((prev) => prev.filter((c) => c.id !== id))
   }, [])
 
+  const updateCharacter = useCallback((id: string, data: Partial<Omit<Character, 'id' | 'createdAt' | 'updatedAt'>>) => {
+    setCharacters((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, ...data, updatedAt: Date.now() }
+          : c,
+      ),
+    )
+  }, [])
+
   const duplicateCharacter = useCallback((char: Character) => {
     const now = Date.now()
     const copy: Character = {
@@ -132,6 +142,7 @@ export function useProjects() {
     openEditCharacter,
     closeCharacterEditor,
     saveCharacter,
+    updateCharacter,
     deleteCharacter,
     duplicateCharacter,
     openNewScene,
