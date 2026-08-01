@@ -15,7 +15,6 @@ interface Props {
 export function CharacterRefiner({ character, providerType, apiEndpoint, apiKey, model, onApply, onClose }: Props) {
   const [instruction, setInstruction] = useState('')
   const [generating, setGenerating] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
   const [parsedResult, setParsedResult] = useState<Record<string, unknown> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -24,7 +23,6 @@ export function CharacterRefiner({ character, providerType, apiEndpoint, apiKey,
     if (!instruction.trim() || !apiKey) return
     setGenerating(true)
     setError(null)
-    setResult(null)
     setParsedResult(null)
 
     const abort = new AbortController()
@@ -88,8 +86,6 @@ Guidelines:
         abort.signal,
         0.9,
       )
-
-      setResult(text)
 
       // Parse JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/)
@@ -242,7 +238,7 @@ Guidelines:
           <div class="dialog__footer-right">
             {parsedResult && !generating && (
               <>
-                <button class="btn btn--ghost" onClick={() => { setParsedResult(null); setResult(null); }}>
+                <button class="btn btn--ghost" onClick={() => setParsedResult(null)}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
                     <polyline points="23 4 23 10 17 10" />
                     <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />

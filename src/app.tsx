@@ -84,6 +84,7 @@ export function App() {
     deleteProvider,
     updateProvider,
     switchProviderModel,
+    currentProviderType,
     currentModel,
     currentApiEndpoint,
     currentApiKey,
