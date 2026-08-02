@@ -13,6 +13,11 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
 
+# Explicitly grant the token write access so release creation and
+# artifact uploads work (the `publish` job creates the GitHub Release).
+permissions:
+  contents: write
+
 jobs:
   # ── Lint & type-check ───────────────────────────────
   check:
@@ -96,15 +101,15 @@ jobs:
         run: npm ci
 
       # ── Build Tauri app ──
+      # Release creation is handled by the `publish` job (tag pushes only).
+      # Without `tagName`, tauri-action only builds bundles and never calls
+      # the GitHub Releases API — so it can't fail with "Resource not
+      # accessible by integration" even on plain branch pushes.
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Texter v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
-          releaseDraft: true
           includeDebug: false
           tauriScript: npm run tauri
           args: --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
